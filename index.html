@@ -13,7 +13,7 @@
     }
 
     .container {
-      max-width: 1000px;
+      max-width: 1100px;
       margin: 0 auto;
       padding: 20px;
     }
@@ -48,6 +48,10 @@
       background: #8c9aa5;
     }
 
+    .danger-btn {
+      background: #b85858;
+    }
+
     .game-section {
       background: #fff;
       border-radius: 14px;
@@ -77,7 +81,7 @@
 
     .audio-label {
       font-weight: bold;
-      min-width: 70px;
+      min-width: 90px;
     }
 
     select {
@@ -102,7 +106,7 @@
 
     .sort-list {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
       gap: 12px;
       margin-top: 16px;
     }
@@ -175,6 +179,40 @@
       margin-top: 8px;
     }
 
+    .playlist-box {
+      border: 1px solid #ead7bf;
+      background: #fff8ef;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+
+    .playlist-title {
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 12px;
+      font-size: 17px;
+    }
+
+    .playlist-controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .playlist-status {
+      text-align: center;
+      margin-top: 12px;
+      font-weight: bold;
+      color: #7a4d20;
+      line-height: 1.6;
+    }
+
+    .now-playing {
+      color: #2d6a9f;
+    }
+
     @media (max-width: 640px) {
       audio {
         width: 100%;
@@ -186,6 +224,16 @@
 
       .audio-label {
         min-width: auto;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .playlist-controls button,
+      .action-row button,
+      .menu button {
+        width: calc(50% - 8px);
       }
     }
   </style>
@@ -202,6 +250,19 @@
     <section id="match-game" class="game-section">
       <h2>遊戲一：角色配對</h2>
       <p class="sort-instruction">請聆聽每一段音樂，選出對應的角色。</p>
+
+      <div class="playlist-box">
+        <div class="playlist-title">角色配對播放列（依第一段到第十一段連播）</div>
+        <div class="playlist-controls">
+          <button id="match-play">播放</button>
+          <button id="match-pause" class="secondary-btn">暫停</button>
+          <button id="match-prev" class="secondary-btn">上一首</button>
+          <button id="match-next" class="secondary-btn">下一首</button>
+          <button id="match-stop" class="danger-btn">停止</button>
+        </div>
+        <div id="match-status" class="playlist-status">尚未播放</div>
+      </div>
+
       <div id="match-list"></div>
     </section>
 
@@ -211,6 +272,19 @@
         請拖曳下列音樂片段，排出《波斯市場》的正確順序。<br>
         可先播放每段音樂，再上下調整位置。
       </p>
+
+      <div class="playlist-box">
+        <div class="playlist-title">音樂排序播放列（依目前位置 1 到 11 連播）</div>
+        <div class="playlist-controls">
+          <button id="sort-play">播放</button>
+          <button id="sort-pause" class="secondary-btn">暫停</button>
+          <button id="sort-prev" class="secondary-btn">上一首</button>
+          <button id="sort-next" class="secondary-btn">下一首</button>
+          <button id="sort-stop" class="danger-btn">停止</button>
+        </div>
+        <div id="sort-status" class="playlist-status">尚未播放</div>
+      </div>
+
       <div class="action-row">
         <button id="shuffle-sort">重新打亂</button>
         <button id="check-sort">檢查排序答案</button>
@@ -230,10 +304,11 @@
     const matchList = document.getElementById("match-list");
     const sortList = document.getElementById("sort-list");
     const sortSummary = document.getElementById("sort-summary");
+    const matchStatus = document.getElementById("match-status");
+    const sortStatus = document.getElementById("sort-status");
 
     const roles = ["吹蛇人", "婚宴樂師", "公主", "乞丐", "駱駝商隊", "酋長"];
 
-    // 這裡的順序就是正確答案順序
     const segments = [
       { id: 1, file: "audio/1.mp3", answerRole: "駱駝商隊" },
       { id: 2, file: "audio/2.mp3", answerRole: "乞丐" },
@@ -262,20 +337,165 @@
 
     function toChineseNumber(num) {
       const map = {
-        1: "一",
-        2: "二",
-        3: "三",
-        4: "四",
-        5: "五",
-        6: "六",
-        7: "七",
-        8: "八",
-        9: "九",
-        10: "十",
-        11: "十一"
+        1: "一", 2: "二", 3: "三", 4: "四", 5: "五", 6: "六",
+        7: "七", 8: "八", 9: "九", 10: "十", 11: "十一"
       };
       return map[num] || num;
     }
+
+    // -------------------------
+    // 共用播放控制
+    // -------------------------
+    const playlistPlayer = new Audio();
+    let currentPlaylistType = null; // "match" or "sort"
+    let currentPlaylistIndex = 0;
+    let isPlaylistStopped = true;
+
+    function stopAllInlineAudio() {
+      document.querySelectorAll("audio").forEach(audio => {
+        audio.pause();
+      });
+    }
+
+    function getPlaylistByType(type) {
+      if (type === "match") return segments;
+      if (type === "sort") return sortSegments;
+      return [];
+    }
+
+    function getStatusElement(type) {
+      return type === "match" ? matchStatus : sortStatus;
+    }
+
+    function updatePlaylistStatus(type, text) {
+      getStatusElement(type).innerHTML = text;
+    }
+
+    function playPlaylist(type, startIndex = null) {
+      stopAllInlineAudio();
+
+      if (currentPlaylistType !== type && !playlistPlayer.paused) {
+        playlistPlayer.pause();
+      }
+
+      currentPlaylistType = type;
+      const list = getPlaylistByType(type);
+
+      if (!list.length) {
+        updatePlaylistStatus(type, "沒有可播放的音樂");
+        return;
+      }
+
+      if (startIndex !== null) {
+        currentPlaylistIndex = startIndex;
+      } else if (currentPlaylistIndex >= list.length) {
+        currentPlaylistIndex = 0;
+      }
+
+      const segment = list[currentPlaylistIndex];
+      if (!segment) return;
+
+      playlistPlayer.src = segment.file;
+      playlistPlayer.play()
+        .then(() => {
+          isPlaylistStopped = false;
+          updatePlaylistStatus(
+            type,
+            `正在播放：<span class="now-playing">第${toChineseNumber(segment.id)}段</span>（第 ${currentPlaylistIndex + 1} 首 / 共 ${list.length} 首）`
+          );
+        })
+        .catch(() => {
+          updatePlaylistStatus(type, "播放失敗，請確認音檔存在且檔名正確");
+        });
+    }
+
+    function pausePlaylist(type) {
+      if (currentPlaylistType !== type) {
+        updatePlaylistStatus(type, "目前不是這個播放列在播放");
+        return;
+      }
+      playlistPlayer.pause();
+      const list = getPlaylistByType(type);
+      const segment = list[currentPlaylistIndex];
+      if (segment) {
+        updatePlaylistStatus(
+          type,
+          `已暫停：<span class="now-playing">第${toChineseNumber(segment.id)}段</span>`
+        );
+      } else {
+        updatePlaylistStatus(type, "已暫停");
+      }
+    }
+
+    function stopPlaylist(type) {
+      if (currentPlaylistType !== type && currentPlaylistType !== null) {
+        updatePlaylistStatus(type, "目前不是這個播放列在播放");
+        return;
+      }
+      playlistPlayer.pause();
+      playlistPlayer.currentTime = 0;
+      isPlaylistStopped = true;
+      currentPlaylistType = type;
+      currentPlaylistIndex = 0;
+      updatePlaylistStatus(type, "已停止");
+    }
+
+    function nextTrack(type) {
+      const list = getPlaylistByType(type);
+      if (!list.length) return;
+
+      if (currentPlaylistType !== type || isPlaylistStopped) {
+        currentPlaylistType = type;
+        currentPlaylistIndex = 0;
+        playPlaylist(type, currentPlaylistIndex);
+        return;
+      }
+
+      currentPlaylistIndex++;
+      if (currentPlaylistIndex >= list.length) {
+        currentPlaylistIndex = list.length - 1;
+        updatePlaylistStatus(type, "已經是最後一首");
+        return;
+      }
+
+      playPlaylist(type, currentPlaylistIndex);
+    }
+
+    function prevTrack(type) {
+      const list = getPlaylistByType(type);
+      if (!list.length) return;
+
+      if (currentPlaylistType !== type || isPlaylistStopped) {
+        currentPlaylistType = type;
+        currentPlaylistIndex = 0;
+        playPlaylist(type, currentPlaylistIndex);
+        return;
+      }
+
+      currentPlaylistIndex--;
+      if (currentPlaylistIndex < 0) {
+        currentPlaylistIndex = 0;
+        updatePlaylistStatus(type, "已經是第一首");
+        return;
+      }
+
+      playPlaylist(type, currentPlaylistIndex);
+    }
+
+    playlistPlayer.addEventListener("ended", () => {
+      if (!currentPlaylistType) return;
+
+      const list = getPlaylistByType(currentPlaylistType);
+      currentPlaylistIndex++;
+
+      if (currentPlaylistIndex < list.length) {
+        playPlaylist(currentPlaylistType, currentPlaylistIndex);
+      } else {
+        updatePlaylistStatus(currentPlaylistType, "播放完成");
+        isPlaylistStopped = true;
+        currentPlaylistIndex = 0;
+      }
+    });
 
     // -------------------------
     // 角色配對
@@ -287,9 +507,7 @@
         const card = document.createElement("div");
         card.className = "card";
 
-        const roleOptions = roles
-          .map(role => `<option value="${role}">${role}</option>`)
-          .join("");
+        const roleOptions = roles.map(role => `<option value="${role}">${role}</option>`).join("");
 
         card.innerHTML = `
           <div class="row">
@@ -357,6 +575,10 @@
       sortSegments = shuffleArray(segments);
       renderSortGame();
       sortSummary.textContent = "";
+      if (currentPlaylistType === "sort") {
+        stopPlaylist("sort");
+      }
+      updatePlaylistStatus("sort", "尚未播放");
     }
 
     function renderSortGame() {
@@ -398,6 +620,9 @@
         draggedItem = null;
         updateSortArrayFromDOM();
         refreshDisplayedOrder();
+        if (currentPlaylistType === "sort" && !isPlaylistStopped) {
+          updatePlaylistStatus("sort", "排序已變動，若要依新順序播放，請按停止後再播放");
+        }
       });
 
       item.addEventListener("dragover", (e) => {
@@ -414,9 +639,7 @@
     }
 
     function getDragAfterElement(container, y) {
-      const draggableElements = [
-        ...container.querySelectorAll(".sort-item:not(.dragging)")
-      ];
+      const draggableElements = [...container.querySelectorAll(".sort-item:not(.dragging)")];
 
       return draggableElements.reduce((closest, child) => {
         const box = child.getBoundingClientRect();
@@ -480,12 +703,29 @@
       sortSummary.textContent = "";
     }
 
+    // -------------------------
+    // 綁定按鈕
+    // -------------------------
     document.getElementById("shuffle-sort").addEventListener("click", initSortGame);
     document.getElementById("check-sort").addEventListener("click", checkSortAnswers);
     document.getElementById("reset-sort-style").addEventListener("click", clearSortStyles);
 
+    document.getElementById("match-play").addEventListener("click", () => playPlaylist("match", currentPlaylistType === "match" && !isPlaylistStopped ? currentPlaylistIndex : 0));
+    document.getElementById("match-pause").addEventListener("click", () => pausePlaylist("match"));
+    document.getElementById("match-prev").addEventListener("click", () => prevTrack("match"));
+    document.getElementById("match-next").addEventListener("click", () => nextTrack("match"));
+    document.getElementById("match-stop").addEventListener("click", () => stopPlaylist("match"));
+
+    document.getElementById("sort-play").addEventListener("click", () => playPlaylist("sort", currentPlaylistType === "sort" && !isPlaylistStopped ? currentPlaylistIndex : 0));
+    document.getElementById("sort-pause").addEventListener("click", () => pausePlaylist("sort"));
+    document.getElementById("sort-prev").addEventListener("click", () => prevTrack("sort"));
+    document.getElementById("sort-next").addEventListener("click", () => nextTrack("sort"));
+    document.getElementById("sort-stop").addEventListener("click", () => stopPlaylist("sort"));
+
     renderMatchGame();
     initSortGame();
+    updatePlaylistStatus("match", "尚未播放");
+    updatePlaylistStatus("sort", "尚未播放");
   </script>
 </body>
 </html>
