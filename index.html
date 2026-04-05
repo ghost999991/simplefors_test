@@ -233,7 +233,7 @@
 
     const roles = ["吹蛇人", "婚宴樂師", "公主", "乞丐", "駱駝商隊", "酋長"];
 
-    // 這裡的 id 就是正確順序
+    // 這裡的順序就是正確答案順序
     const segments = [
       { id: 1, file: "audio/1.mp3", answerRole: "駱駝商隊" },
       { id: 2, file: "audio/2.mp3", answerRole: "乞丐" },
@@ -260,6 +260,23 @@
       matchGame.classList.add("hidden");
     });
 
+    function toChineseNumber(num) {
+      const map = {
+        1: "一",
+        2: "二",
+        3: "三",
+        4: "四",
+        5: "五",
+        6: "六",
+        7: "七",
+        8: "八",
+        9: "九",
+        10: "十",
+        11: "十一"
+      };
+      return map[num] || num;
+    }
+
     // -------------------------
     // 角色配對
     // -------------------------
@@ -276,7 +293,7 @@
 
         card.innerHTML = `
           <div class="row">
-            <span class="audio-label">段落 ${segment.id}</span>
+            <span class="audio-label">第${toChineseNumber(segment.id)}段</span>
             <audio controls src="${segment.file}"></audio>
             <select id="role-${segment.id}">
               <option value="">請選擇角色</option>
@@ -318,7 +335,7 @@
           result.textContent = "✔ 正確";
           result.style.color = "green";
         } else {
-          result.textContent = `✘ 錯誤`;
+          result.textContent = "✘ 錯誤";
           result.style.color = "red";
         }
       });
@@ -358,7 +375,7 @@
             <span class="sort-handle">☰</span>
           </div>
           <div class="row">
-            <span class="audio-label">音樂片段</span>
+            <span class="audio-label">第${toChineseNumber(segment.id)}段</span>
             <audio controls src="${segment.file}"></audio>
           </div>
         `;
