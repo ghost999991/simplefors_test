@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>波斯市場音樂遊戲</title>
+
+<style>
+body {
+  font-family: Arial, "Microsoft JhengHei";
+  background: #f6f3ee;
+  margin: 0;
+}
+
+.container {
+  max-width: 900px;
+  margin: auto;
+  padding: 20px;
+}
+
+h1, h2 {
+  text-align: center;
+}
+
+.menu {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 8px;
+  background: #c98942;
+  color: white;
+  cursor: pointer;
+}
+
+.card {
+  background: white;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.hidden {
+  display: none;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+  <h1>《波斯市場》音樂遊戲</h1>
+
+  <div class="menu">
+    <button onclick="showGame('match')">角色配對</button>
+    <button onclick="showGame('sort')">音樂排序</button>
+  </div>
+
+  <div id="matchGame"></div>
+  <div id="sortGame" class="hidden"></div>
+</div>
+
+<script>
+
+// ===== 資料設定（你只要改這裡） =====
+const roles = ["吹蛇人","婚宴樂師","公主","乞丐","駱駝商隊","酋長"];
+
+const segments = [
+  {id:1, file:"audio/1.mp3", answer:"駱駝商隊"},
+  {id:2, file:"audio/2.mp3", answer:"乞丐"},
+  {id:3, file:"audio/3.mp3", answer:"公主"},
+  {id:4, file:"audio/4.mp3", answer:"吹蛇人"},
+  {id:5, file:"audio/5.mp3", answer:"婚宴樂師"},
+  {id:6, file:"audio/6.mp3", answer:"酋長"},
+  {id:7, file:"audio/7.mp3", answer:"駱駝商隊"},
+  {id:8, file:"audio/8.mp3", answer:"公主"},
+  {id:9, file:"audio/9.mp3", answer:"吹蛇人"},
+  {id:10, file:"audio/10.mp3", answer:"乞丐"},
+  {id:11, file:"audio/11.mp3", answer:"酋長"}
+];
+
+// ===== UI 切換 =====
+function showGame(type){
+  document.getElementById("matchGame").classList.toggle("hidden", type !== "match");
+  document.getElementById("sortGame").classList.toggle("hidden", type !== "sort");
+}
+
+// ===== 角色配對 =====
+function renderMatch(){
+  let html = "<h2>角色配對</h2>";
+
+  segments.forEach(s => {
+    html += `
+    <div class="card">
+      <div class="row">
+        <b>段落 ${s.id}</b>
+        <audio controls src="${s.file}"></audio>
+
+        <select id="select-${s.id}">
+          <option value="">選角色</option>
+          ${roles.map(r=>`<option>${r}</option>`).join("")}
+        </select>
+
+        <span id="result-${s.id}"></span>
+      </div>
+    </div>`;
+  });
+
+  html += `
+    <button onclick="checkAnswer()">檢查答案</button>
+    <button onclick="renderMatch()">重新開始</button>
+  `;
+
+  document.getElementById("matchGame").innerHTML = html;
+}
+
+// ===== 檢查答案 =====
+function checkAnswer(){
+  segments.forEach(s=>{
+    let user = document.getElementById(`select-${s.id}`).value;
+    let result = document.getElementById(`result-${s.id}`);
+
+    if(user === ""){
+      result.innerText = "未填";
+      result.style.color = "gray";
+    }
+    else if(user === s.answer){
+      result.innerText = "✔";
+      result.style.color = "green";
+    }
+    else{
+      result.innerText = "✘";
+      result.style.color = "red";
+    }
+  });
+}
+
+// ===== 音樂排序（簡化版）=====
+function renderSort(){
+  let html = "<h2>音樂排序（先聽）</h2>";
+  html += "<p>（下一步我可以幫你升級成拖曳排序）</p>";
+
+  segments.forEach(s=>{
+    html += `
+    <div class="card">
+      <div class="row">
+        <b>段落 ${s.id}</b>
+        <audio controls src="${s.file}"></audio>
+      </div>
+    </div>`;
+  });
+
+  document.getElementById("sortGame").innerHTML = html;
+}
+
+// ===== 初始化 =====
+renderMatch();
+renderSort();
+
+</script>
+
+</body>
+</html>
