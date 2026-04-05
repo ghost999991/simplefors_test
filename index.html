@@ -1,176 +1,474 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>測試遊戲</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>《波斯市場》音樂遊戲</title>
+  <style>
+    body {
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+      background: #f6f3ee;
+      margin: 0;
+      color: #333;
+    }
 
-<style>
-body {
-  font-family: Arial, "Microsoft JhengHei";
-  background: #f6f3ee;
-  margin: 0;
-}
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+    }
 
-.container {
-  max-width: 900px;
-  margin: auto;
-  padding: 20px;
-}
+    h1, h2 {
+      text-align: center;
+    }
 
-h1, h2 {
-  text-align: center;
-}
+    .menu {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 20px 0 30px;
+      flex-wrap: wrap;
+    }
 
-.menu {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin: 20px 0;
-}
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #c98942;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+    }
 
-button {
-  padding: 10px 15px;
-  border: none;
-  border-radius: 8px;
-  background: #c98942;
-  color: white;
-  cursor: pointer;
-}
+    button:hover {
+      opacity: 0.92;
+    }
 
-.card {
-  background: white;
-  padding: 10px;
-  border-radius: 10px;
-  margin-bottom: 10px;
-}
+    .secondary-btn {
+      background: #8c9aa5;
+    }
 
-.row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
+    .game-section {
+      background: #fff;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 20px;
+    }
 
-.hidden {
-  display: none;
-}
-</style>
+    .hidden {
+      display: none;
+    }
 
+    .card {
+      border: 1px solid #e3e3e3;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: #fafafa;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .audio-label {
+      font-weight: bold;
+      min-width: 70px;
+    }
+
+    select {
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 15px;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .sort-instruction {
+      text-align: center;
+      margin-bottom: 18px;
+      line-height: 1.6;
+    }
+
+    .sort-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .sort-item {
+      border: 2px solid #ddd;
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px;
+      cursor: grab;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    .sort-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    }
+
+    .sort-item.dragging {
+      opacity: 0.5;
+      border-color: #c98942;
+    }
+
+    .sort-item.correct {
+      border-color: #2e9d55;
+      background: #eefaf2;
+    }
+
+    .sort-item.wrong {
+      border-color: #d84b4b;
+      background: #fff1f1;
+    }
+
+    .sort-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      gap: 10px;
+    }
+
+    .sort-order {
+      font-weight: bold;
+      color: #555;
+    }
+
+    .sort-handle {
+      font-size: 18px;
+      color: #999;
+      user-select: none;
+    }
+
+    .result-text {
+      font-weight: bold;
+      margin-left: 6px;
+    }
+
+    .summary-box {
+      margin-top: 16px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 17px;
+    }
+
+    .note {
+      font-size: 14px;
+      color: #666;
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 640px) {
+      audio {
+        width: 100%;
+      }
+
+      .row {
+        align-items: flex-start;
+      }
+
+      .audio-label {
+        min-width: auto;
+      }
+    }
+  </style>
 </head>
-
 <body>
+  <div class="container">
+    <h1>《波斯市場》音樂互動遊戲</h1>
 
-<div class="container">
-  <h1>《波斯市場》音樂遊戲</h1>
+    <div class="menu">
+      <button id="show-match">角色配對</button>
+      <button id="show-sort">音樂排序</button>
+    </div>
 
-  <div class="menu">
-    <button onclick="showGame('match')">角色配對</button>
-    <button onclick="showGame('sort')">音樂排序</button>
+    <section id="match-game" class="game-section">
+      <h2>遊戲一：角色配對</h2>
+      <p class="sort-instruction">請聆聽每一段音樂，選出對應的角色。</p>
+      <div id="match-list"></div>
+    </section>
+
+    <section id="sort-game" class="game-section hidden">
+      <h2>遊戲二：音樂排序</h2>
+      <p class="sort-instruction">
+        請拖曳下列音樂片段，排出《波斯市場》的正確順序。<br>
+        可先播放每段音樂，再上下調整位置。
+      </p>
+      <div class="action-row">
+        <button id="shuffle-sort">重新打亂</button>
+        <button id="check-sort">檢查排序答案</button>
+        <button id="reset-sort-style" class="secondary-btn">清除標記</button>
+      </div>
+      <div id="sort-list" class="sort-list"></div>
+      <div id="sort-summary" class="summary-box"></div>
+      <div class="note">提示：拖住卡片即可改變順序。</div>
+    </section>
   </div>
 
-  <div id="matchGame"></div>
-  <div id="sortGame" class="hidden"></div>
-</div>
+  <script>
+    const showMatchBtn = document.getElementById("show-match");
+    const showSortBtn = document.getElementById("show-sort");
+    const matchGame = document.getElementById("match-game");
+    const sortGame = document.getElementById("sort-game");
+    const matchList = document.getElementById("match-list");
+    const sortList = document.getElementById("sort-list");
+    const sortSummary = document.getElementById("sort-summary");
 
-<script>
+    const roles = ["吹蛇人", "婚宴樂師", "公主", "乞丐", "駱駝商隊", "酋長"];
 
-// ===== 資料設定（你只要改這裡） =====
-const roles = ["吹蛇人","婚宴樂師","公主","乞丐","駱駝商隊","酋長"];
+    // 這裡的 id 就是正確順序
+    const segments = [
+      { id: 1, file: "audio/1.mp3", answerRole: "駱駝商隊" },
+      { id: 2, file: "audio/2.mp3", answerRole: "乞丐" },
+      { id: 3, file: "audio/3.mp3", answerRole: "公主" },
+      { id: 4, file: "audio/4.mp3", answerRole: "吹蛇人" },
+      { id: 5, file: "audio/5.mp3", answerRole: "婚宴樂師" },
+      { id: 6, file: "audio/6.mp3", answerRole: "酋長" },
+      { id: 7, file: "audio/7.mp3", answerRole: "駱駝商隊" },
+      { id: 8, file: "audio/8.mp3", answerRole: "公主" },
+      { id: 9, file: "audio/9.mp3", answerRole: "吹蛇人" },
+      { id: 10, file: "audio/10.mp3", answerRole: "乞丐" },
+      { id: 11, file: "audio/11.mp3", answerRole: "酋長" }
+    ];
 
-const segments = [
-  {id:1, file:"audio/1.mp3", answer:"駱駝商隊"},
-  {id:2, file:"audio/2.mp3", answer:"乞丐"},
-  {id:3, file:"audio/3.mp3", answer:"公主"},
-  {id:4, file:"audio/4.mp3", answer:"吹蛇人"},
-  {id:5, file:"audio/5.mp3", answer:"婚宴樂師"},
-  {id:6, file:"audio/6.mp3", answer:"酋長"},
-  {id:7, file:"audio/7.mp3", answer:"駱駝商隊"},
-  {id:8, file:"audio/8.mp3", answer:"公主"},
-  {id:9, file:"audio/9.mp3", answer:"吹蛇人"},
-  {id:10, file:"audio/10.mp3", answer:"乞丐"},
-  {id:11, file:"audio/11.mp3", answer:"酋長"}
-];
+    let sortSegments = [];
 
-// ===== UI 切換 =====
-function showGame(type){
-  document.getElementById("matchGame").classList.toggle("hidden", type !== "match");
-  document.getElementById("sortGame").classList.toggle("hidden", type !== "sort");
-}
+    showMatchBtn.addEventListener("click", () => {
+      matchGame.classList.remove("hidden");
+      sortGame.classList.add("hidden");
+    });
 
-// ===== 角色配對 =====
-function renderMatch(){
-  let html = "<h2>角色配對</h2>";
+    showSortBtn.addEventListener("click", () => {
+      sortGame.classList.remove("hidden");
+      matchGame.classList.add("hidden");
+    });
 
-  segments.forEach(s => {
-    html += `
-    <div class="card">
-      <div class="row">
-        <b>段落 ${s.id}</b>
-        <audio controls src="${s.file}"></audio>
+    // -------------------------
+    // 角色配對
+    // -------------------------
+    function renderMatchGame() {
+      matchList.innerHTML = "";
 
-        <select id="select-${s.id}">
-          <option value="">選角色</option>
-          ${roles.map(r=>`<option>${r}</option>`).join("")}
-        </select>
+      segments.forEach((segment) => {
+        const card = document.createElement("div");
+        card.className = "card";
 
-        <span id="result-${s.id}"></span>
-      </div>
-    </div>`;
-  });
+        const roleOptions = roles
+          .map(role => `<option value="${role}">${role}</option>`)
+          .join("");
 
-  html += `
-    <button onclick="checkAnswer()">檢查答案</button>
-    <button onclick="renderMatch()">重新開始</button>
-  `;
+        card.innerHTML = `
+          <div class="row">
+            <span class="audio-label">段落 ${segment.id}</span>
+            <audio controls src="${segment.file}"></audio>
+            <select id="role-${segment.id}">
+              <option value="">請選擇角色</option>
+              ${roleOptions}
+            </select>
+            <span id="result-${segment.id}" class="result-text"></span>
+          </div>
+        `;
 
-  document.getElementById("matchGame").innerHTML = html;
-}
+        matchList.appendChild(card);
+      });
 
-// ===== 檢查答案 =====
-function checkAnswer(){
-  segments.forEach(s=>{
-    let user = document.getElementById(`select-${s.id}`).value;
-    let result = document.getElementById(`result-${s.id}`);
+      const actionRow = document.createElement("div");
+      actionRow.className = "action-row";
 
-    if(user === ""){
-      result.innerText = "未填";
-      result.style.color = "gray";
+      const checkBtn = document.createElement("button");
+      checkBtn.textContent = "檢查答案";
+      checkBtn.addEventListener("click", checkMatchAnswers);
+
+      const resetBtn = document.createElement("button");
+      resetBtn.textContent = "重新開始";
+      resetBtn.className = "secondary-btn";
+      resetBtn.addEventListener("click", renderMatchGame);
+
+      actionRow.appendChild(checkBtn);
+      actionRow.appendChild(resetBtn);
+      matchList.appendChild(actionRow);
     }
-    else if(user === s.answer){
-      result.innerText = "✔";
-      result.style.color = "green";
+
+    function checkMatchAnswers() {
+      segments.forEach((segment) => {
+        const selected = document.getElementById(`role-${segment.id}`).value;
+        const result = document.getElementById(`result-${segment.id}`);
+
+        if (!selected) {
+          result.textContent = "未作答";
+          result.style.color = "gray";
+        } else if (selected === segment.answerRole) {
+          result.textContent = "✔ 正確";
+          result.style.color = "green";
+        } else {
+          result.textContent = `✘ 錯誤`;
+          result.style.color = "red";
+        }
+      });
     }
-    else{
-      result.innerText = "✘";
-      result.style.color = "red";
+
+    // -------------------------
+    // 音樂排序
+    // -------------------------
+    function shuffleArray(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
     }
-  });
-}
 
-// ===== 音樂排序（簡化版）=====
-function renderSort(){
-  let html = "<h2>音樂排序（先聽）</h2>";
-  html += "<p>（下一步我可以幫你升級成拖曳排序）</p>";
+    function initSortGame() {
+      sortSegments = shuffleArray(segments);
+      renderSortGame();
+      sortSummary.textContent = "";
+    }
 
-  segments.forEach(s=>{
-    html += `
-    <div class="card">
-      <div class="row">
-        <b>段落 ${s.id}</b>
-        <audio controls src="${s.file}"></audio>
-      </div>
-    </div>`;
-  });
+    function renderSortGame() {
+      sortList.innerHTML = "";
 
-  document.getElementById("sortGame").innerHTML = html;
-}
+      sortSegments.forEach((segment, index) => {
+        const item = document.createElement("div");
+        item.className = "sort-item";
+        item.draggable = true;
+        item.dataset.id = segment.id;
+        item.dataset.index = index;
 
-// ===== 初始化 =====
-renderMatch();
-renderSort();
+        item.innerHTML = `
+          <div class="sort-top">
+            <span class="sort-order">目前位置 ${index + 1}</span>
+            <span class="sort-handle">☰</span>
+          </div>
+          <div class="row">
+            <span class="audio-label">音樂片段</span>
+            <audio controls src="${segment.file}"></audio>
+          </div>
+        `;
 
-</script>
+        addDragEvents(item);
+        sortList.appendChild(item);
+      });
+    }
 
+    let draggedItem = null;
+
+    function addDragEvents(item) {
+      item.addEventListener("dragstart", () => {
+        draggedItem = item;
+        item.classList.add("dragging");
+      });
+
+      item.addEventListener("dragend", () => {
+        item.classList.remove("dragging");
+        draggedItem = null;
+        updateSortArrayFromDOM();
+        refreshDisplayedOrder();
+      });
+
+      item.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(sortList, e.clientY);
+        if (!draggedItem) return;
+
+        if (afterElement == null) {
+          sortList.appendChild(draggedItem);
+        } else {
+          sortList.insertBefore(draggedItem, afterElement);
+        }
+      });
+    }
+
+    function getDragAfterElement(container, y) {
+      const draggableElements = [
+        ...container.querySelectorAll(".sort-item:not(.dragging)")
+      ];
+
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    function updateSortArrayFromDOM() {
+      const items = [...sortList.querySelectorAll(".sort-item")];
+      const newOrder = items.map(item => {
+        const id = Number(item.dataset.id);
+        return segments.find(seg => seg.id === id);
+      });
+      sortSegments = newOrder;
+    }
+
+    function refreshDisplayedOrder() {
+      const items = [...sortList.querySelectorAll(".sort-item")];
+      items.forEach((item, index) => {
+        const orderText = item.querySelector(".sort-order");
+        orderText.textContent = `目前位置 ${index + 1}`;
+      });
+    }
+
+    function checkSortAnswers() {
+      const items = [...sortList.querySelectorAll(".sort-item")];
+      let correctCount = 0;
+
+      items.forEach((item, index) => {
+        const currentId = Number(item.dataset.id);
+        const correctId = segments[index].id;
+
+        item.classList.remove("correct", "wrong");
+
+        if (currentId === correctId) {
+          item.classList.add("correct");
+          correctCount++;
+        } else {
+          item.classList.add("wrong");
+        }
+      });
+
+      if (correctCount === segments.length) {
+        sortSummary.textContent = "🎉 全部正確！排序完成。";
+        sortSummary.style.color = "green";
+      } else {
+        sortSummary.textContent = `目前答對 ${correctCount} / ${segments.length}`;
+        sortSummary.style.color = "#c05a00";
+      }
+    }
+
+    function clearSortStyles() {
+      const items = [...sortList.querySelectorAll(".sort-item")];
+      items.forEach(item => item.classList.remove("correct", "wrong"));
+      sortSummary.textContent = "";
+    }
+
+    document.getElementById("shuffle-sort").addEventListener("click", initSortGame);
+    document.getElementById("check-sort").addEventListener("click", checkSortAnswers);
+    document.getElementById("reset-sort-style").addEventListener("click", clearSortStyles);
+
+    renderMatchGame();
+    initSortGame();
+  </script>
 </body>
 </html>
