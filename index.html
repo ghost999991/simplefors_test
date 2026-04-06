@@ -13,12 +13,12 @@
     }
 
     .container {
-      max-width: 1100px;
+      max-width: 1150px;
       margin: 0 auto;
       padding: 20px;
     }
 
-    h1, h2 {
+    h1, h2, h3 {
       text-align: center;
     }
 
@@ -215,6 +215,116 @@
       color: #2d6a9f;
     }
 
+    .upload-box {
+      border: 2px dashed #d6b58d;
+      background: #fff8ef;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 18px;
+      text-align: center;
+    }
+
+    .upload-box input[type="file"] {
+      margin-top: 10px;
+    }
+
+    .upload-tip {
+      color: #7a4d20;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .create-layout {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .create-panel {
+      background: #fafafa;
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .song-pool,
+    .slot-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .song-pool {
+      min-height: 120px;
+    }
+
+    .slot-grid {
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+
+    .drop-zone {
+      min-height: 110px;
+      border: 2px dashed #c9c9c9;
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .drop-zone.drag-over {
+      border-color: #c98942;
+      background: #fff6ea;
+    }
+
+    .drop-zone-title {
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 8px;
+      color: #7a4d20;
+    }
+
+    .uploaded-song {
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      background: white;
+      padding: 10px;
+      cursor: move;
+      user-select: none;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+
+    .uploaded-song.dragging {
+      opacity: 0.5;
+      border-color: #c98942;
+    }
+
+    .uploaded-song-title {
+      font-weight: bold;
+      margin-bottom: 8px;
+      word-break: break-word;
+      font-size: 14px;
+    }
+
+    .empty-text {
+      text-align: center;
+      color: #888;
+      font-size: 14px;
+      padding-top: 18px;
+    }
+
+    .warning-text {
+      text-align: center;
+      color: #b85858;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 900px) {
+      .create-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 640px) {
       audio {
         width: 100%;
@@ -237,6 +347,10 @@
       .menu button {
         width: calc(50% - 8px);
       }
+
+      .slot-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -247,6 +361,7 @@
     <div class="menu">
       <button id="show-match">角色配對</button>
       <button id="show-sort">音樂排序</button>
+      <button id="show-create1">創作1</button>
     </div>
 
     <section id="match-game" class="game-section">
@@ -296,13 +411,48 @@
       <div id="sort-summary" class="summary-box"></div>
       <div class="note">提示：現在整張卡片都比較容易拖曳，播放器本身仍可正常操作。</div>
     </section>
+
+    <section id="create1-game" class="game-section hidden">
+      <h2>創作1</h2>
+      <p class="sort-instruction">
+        上傳最多 5 首音檔，然後拖曳到指定位置：山、水、雷電、陰、陽。<br>
+        這些音檔只會在你目前這次開啟的網頁中使用，重新整理後會清空。
+      </p>
+
+      <div class="upload-box">
+        <div><strong>歌曲上傳方塊</strong></div>
+        <input id="create1-upload" type="file" accept=".mp3,.wav,.m4a,.aac,audio/*" multiple />
+        <div class="upload-tip">支援 mp3、wav、m4a、aac。最多 5 首。</div>
+        <div id="create1-warning" class="warning-text"></div>
+      </div>
+
+      <div class="action-row">
+        <button id="create1-clear" class="danger-btn">清空創作1</button>
+      </div>
+
+      <div class="create-layout">
+        <div class="create-panel">
+          <h3>歌曲區</h3>
+          <div id="song-pool" class="song-pool drop-zone" data-zone="pool"></div>
+        </div>
+
+        <div class="create-panel">
+          <h3>指定位置</h3>
+          <div id="slot-grid" class="slot-grid"></div>
+        </div>
+      </div>
+    </section>
   </div>
 
   <script>
     const showMatchBtn = document.getElementById("show-match");
     const showSortBtn = document.getElementById("show-sort");
+    const showCreate1Btn = document.getElementById("show-create1");
+
     const matchGame = document.getElementById("match-game");
     const sortGame = document.getElementById("sort-game");
+    const create1Game = document.getElementById("create1-game");
+
     const matchList = document.getElementById("match-list");
     const sortList = document.getElementById("sort-list");
     const sortSummary = document.getElementById("sort-summary");
@@ -327,15 +477,16 @@
 
     let sortSegments = [];
 
-    showMatchBtn.addEventListener("click", () => {
-      matchGame.classList.remove("hidden");
-      sortGame.classList.add("hidden");
-    });
-
-    showSortBtn.addEventListener("click", () => {
-      sortGame.classList.remove("hidden");
+    function showSection(section) {
       matchGame.classList.add("hidden");
-    });
+      sortGame.classList.add("hidden");
+      create1Game.classList.add("hidden");
+      section.classList.remove("hidden");
+    }
+
+    showMatchBtn.addEventListener("click", () => showSection(matchGame));
+    showSortBtn.addEventListener("click", () => showSection(sortGame));
+    showCreate1Btn.addEventListener("click", () => showSection(create1Game));
 
     function toChineseNumber(num) {
       const map = {
@@ -354,9 +505,7 @@
     let isPlaylistStopped = true;
 
     function stopAllInlineAudio() {
-      document.querySelectorAll("audio").forEach(audio => {
-        audio.pause();
-      });
+      document.querySelectorAll("audio").forEach(audio => audio.pause());
     }
 
     function getPlaylistByType(type) {
@@ -420,10 +569,7 @@
       const list = getPlaylistByType(type);
       const segment = list[currentPlaylistIndex];
       if (segment) {
-        updatePlaylistStatus(
-          type,
-          `已暫停：<span class="now-playing">第${toChineseNumber(segment.id)}段</span>`
-        );
+        updatePlaylistStatus(type, `已暫停：<span class="now-playing">第${toChineseNumber(segment.id)}段</span>`);
       } else {
         updatePlaylistStatus(type, "已暫停");
       }
@@ -522,7 +668,6 @@
             <span id="result-${segment.id}" class="result-text"></span>
           </div>
         `;
-
         matchList.appendChild(card);
       });
 
@@ -591,7 +736,6 @@
         item.className = "sort-item";
         item.draggable = true;
         item.dataset.id = segment.id;
-        item.dataset.index = index;
 
         item.innerHTML = `
           <div class="sort-top">
@@ -603,29 +747,28 @@
           </div>
         `;
 
-        addDragEvents(item);
+        addSortDragEvents(item);
         sortList.appendChild(item);
       });
     }
 
-    let draggedItem = null;
+    let draggedSortItem = null;
 
-    function addDragEvents(item) {
+    function addSortDragEvents(item) {
       item.addEventListener("dragstart", (e) => {
         const tag = e.target.tagName.toLowerCase();
-
         if (tag === "audio") {
           e.preventDefault();
           return;
         }
 
-        draggedItem = item;
+        draggedSortItem = item;
         item.classList.add("dragging");
       });
 
       item.addEventListener("dragend", () => {
         item.classList.remove("dragging");
-        draggedItem = null;
+        draggedSortItem = null;
         updateSortArrayFromDOM();
         refreshDisplayedOrder();
 
@@ -640,16 +783,16 @@
 
       item.addEventListener("drop", (e) => {
         e.preventDefault();
-        if (!draggedItem || draggedItem === item) return;
+        if (!draggedSortItem || draggedSortItem === item) return;
 
         const items = [...sortList.querySelectorAll(".sort-item")];
-        const draggedIndex = items.indexOf(draggedItem);
+        const draggedIndex = items.indexOf(draggedSortItem);
         const targetIndex = items.indexOf(item);
 
         if (draggedIndex < targetIndex) {
-          sortList.insertBefore(draggedItem, item.nextSibling);
+          sortList.insertBefore(draggedSortItem, item.nextSibling);
         } else {
-          sortList.insertBefore(draggedItem, item);
+          sortList.insertBefore(draggedSortItem, item);
         }
 
         updateSortArrayFromDOM();
@@ -659,18 +802,16 @@
 
     function updateSortArrayFromDOM() {
       const items = [...sortList.querySelectorAll(".sort-item")];
-      const newOrder = items.map(item => {
+      sortSegments = items.map(item => {
         const id = Number(item.dataset.id);
         return segments.find(seg => seg.id === id);
       });
-      sortSegments = newOrder;
     }
 
     function refreshDisplayedOrder() {
       const items = [...sortList.querySelectorAll(".sort-item")];
       items.forEach((item, index) => {
-        const orderText = item.querySelector(".sort-order");
-        orderText.textContent = `目前位置 ${index + 1}`;
+        item.querySelector(".sort-order").textContent = `目前位置 ${index + 1}`;
       });
     }
 
@@ -702,10 +843,181 @@
     }
 
     function clearSortStyles() {
-      const items = [...sortList.querySelectorAll(".sort-item")];
-      items.forEach(item => item.classList.remove("correct", "wrong"));
+      [...sortList.querySelectorAll(".sort-item")].forEach(item => {
+        item.classList.remove("correct", "wrong");
+      });
       sortSummary.textContent = "";
     }
+
+    // -------------------------
+    // 創作1
+    // -------------------------
+    const create1Upload = document.getElementById("create1-upload");
+    const create1Warning = document.getElementById("create1-warning");
+    const songPool = document.getElementById("song-pool");
+    const slotGrid = document.getElementById("slot-grid");
+    const create1ClearBtn = document.getElementById("create1-clear");
+
+    const create1Slots = ["山", "水", "雷電", "陰", "陽"];
+    let create1Songs = [];
+    let create1DraggedSongId = null;
+    let create1SongCounter = 1;
+
+    function renderCreate1() {
+      renderSongPool();
+      renderSlotGrid();
+    }
+
+    function renderSongPool() {
+      songPool.innerHTML = "";
+
+      const poolSongs = create1Songs.filter(song => song.slot === null);
+
+      if (!poolSongs.length) {
+        songPool.innerHTML = '<div class="empty-text">尚未放置的歌曲會顯示在這裡</div>';
+      } else {
+        poolSongs.forEach(song => {
+          songPool.appendChild(createSongCard(song));
+        });
+      }
+
+      enableDropZone(songPool, "pool");
+    }
+
+    function renderSlotGrid() {
+      slotGrid.innerHTML = "";
+
+      create1Slots.forEach(slotName => {
+        const zone = document.createElement("div");
+        zone.className = "drop-zone";
+        zone.dataset.zone = slotName;
+
+        const title = document.createElement("div");
+        title.className = "drop-zone-title";
+        title.textContent = slotName;
+        zone.appendChild(title);
+
+        const song = create1Songs.find(item => item.slot === slotName);
+        if (song) {
+          zone.appendChild(createSongCard(song));
+        } else {
+          const empty = document.createElement("div");
+          empty.className = "empty-text";
+          empty.textContent = "拖曳歌曲到這裡";
+          zone.appendChild(empty);
+        }
+
+        enableDropZone(zone, slotName);
+        slotGrid.appendChild(zone);
+      });
+    }
+
+    function createSongCard(song) {
+      const card = document.createElement("div");
+      card.className = "uploaded-song";
+      card.draggable = true;
+      card.dataset.songId = song.id;
+
+      card.innerHTML = `
+        <div class="uploaded-song-title">${song.name}</div>
+        <audio controls src="${song.url}"></audio>
+      `;
+
+      card.addEventListener("dragstart", (e) => {
+        const tag = e.target.tagName.toLowerCase();
+        if (tag === "audio") {
+          e.preventDefault();
+          return;
+        }
+        create1DraggedSongId = song.id;
+        card.classList.add("dragging");
+      });
+
+      card.addEventListener("dragend", () => {
+        card.classList.remove("dragging");
+      });
+
+      return card;
+    }
+
+    function enableDropZone(zone, zoneName) {
+      zone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        zone.classList.add("drag-over");
+      });
+
+      zone.addEventListener("dragleave", () => {
+        zone.classList.remove("drag-over");
+      });
+
+      zone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        zone.classList.remove("drag-over");
+
+        if (!create1DraggedSongId) return;
+
+        const draggedSong = create1Songs.find(song => song.id === create1DraggedSongId);
+        if (!draggedSong) return;
+
+        if (zoneName === "pool") {
+          draggedSong.slot = null;
+        } else {
+          const existingSong = create1Songs.find(song => song.slot === zoneName);
+          if (existingSong && existingSong.id !== draggedSong.id) {
+            existingSong.slot = null;
+          }
+          draggedSong.slot = zoneName;
+        }
+
+        create1DraggedSongId = null;
+        renderCreate1();
+      });
+    }
+
+    create1Upload.addEventListener("change", (e) => {
+      create1Warning.textContent = "";
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+
+      const remain = 5 - create1Songs.length;
+      if (remain <= 0) {
+        create1Warning.textContent = "已經有 5 首歌，請先清空後再上傳。";
+        create1Upload.value = "";
+        return;
+      }
+
+      const acceptedFiles = files.slice(0, remain);
+      if (files.length > remain) {
+        create1Warning.textContent = `最多只能放 5 首，本次只加入前 ${remain} 首。`;
+      }
+
+      acceptedFiles.forEach(file => {
+        const url = URL.createObjectURL(file);
+        create1Songs.push({
+          id: create1SongCounter++,
+          name: file.name,
+          file: file,
+          url: url,
+          slot: null
+        });
+      });
+
+      create1Upload.value = "";
+      renderCreate1();
+    });
+
+    create1ClearBtn.addEventListener("click", () => {
+      create1Songs.forEach(song => {
+        try {
+          URL.revokeObjectURL(song.url);
+        } catch (err) {}
+      });
+      create1Songs = [];
+      create1DraggedSongId = null;
+      create1Warning.textContent = "";
+      create1Upload.value = "";
+      renderCreate1();
+    });
 
     // -------------------------
     // 綁定按鈕
@@ -714,13 +1026,17 @@
     document.getElementById("check-sort").addEventListener("click", checkSortAnswers);
     document.getElementById("reset-sort-style").addEventListener("click", clearSortStyles);
 
-    document.getElementById("match-play").addEventListener("click", () => playPlaylist("match", currentPlaylistType === "match" && !isPlaylistStopped ? currentPlaylistIndex : 0));
+    document.getElementById("match-play").addEventListener("click", () =>
+      playPlaylist("match", currentPlaylistType === "match" && !isPlaylistStopped ? currentPlaylistIndex : 0)
+    );
     document.getElementById("match-pause").addEventListener("click", () => pausePlaylist("match"));
     document.getElementById("match-prev").addEventListener("click", () => prevTrack("match"));
     document.getElementById("match-next").addEventListener("click", () => nextTrack("match"));
     document.getElementById("match-stop").addEventListener("click", () => stopPlaylist("match"));
 
-    document.getElementById("sort-play").addEventListener("click", () => playPlaylist("sort", currentPlaylistType === "sort" && !isPlaylistStopped ? currentPlaylistIndex : 0));
+    document.getElementById("sort-play").addEventListener("click", () =>
+      playPlaylist("sort", currentPlaylistType === "sort" && !isPlaylistStopped ? currentPlaylistIndex : 0)
+    );
     document.getElementById("sort-pause").addEventListener("click", () => pausePlaylist("sort"));
     document.getElementById("sort-prev").addEventListener("click", () => prevTrack("sort"));
     document.getElementById("sort-next").addEventListener("click", () => nextTrack("sort"));
@@ -728,6 +1044,7 @@
 
     renderMatchGame();
     initSortGame();
+    renderCreate1();
     updatePlaylistStatus("match", "尚未播放");
     updatePlaylistStatus("sort", "尚未播放");
   </script>
