@@ -271,7 +271,8 @@
       transition: border-color 0.15s ease, background 0.15s ease;
     }
 
-    .drop-zone.drag-over {
+    .drop-zone.drag-over,
+    .drop-zone.tap-target {
       border-color: #c98942;
       background: #fff6ea;
     }
@@ -291,11 +292,18 @@
       cursor: move;
       user-select: none;
       box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
     }
 
     .uploaded-song.dragging {
       opacity: 0.5;
       border-color: #c98942;
+    }
+
+    .uploaded-song.selected {
+      border: 2px solid #c98942;
+      background: #fff3e3;
+      transform: translateY(-1px);
     }
 
     .uploaded-song-title {
@@ -317,6 +325,14 @@
       color: #b85858;
       font-weight: bold;
       margin-top: 10px;
+    }
+
+    .mobile-tip {
+      text-align: center;
+      font-size: 14px;
+      color: #7a4d20;
+      margin-top: 10px;
+      line-height: 1.6;
     }
 
     @media (max-width: 900px) {
@@ -415,9 +431,21 @@
     <section id="create1-game" class="game-section hidden">
       <h2>創作1</h2>
       <p class="sort-instruction">
-        上傳最多 5 首音檔，然後拖曳到指定位置：山、水、雷電、陰、陽。<br>
-        這些音檔只會在你目前這次開啟的網頁中使用，重新整理後會清空。
+        上傳最多 5 首音檔，然後放到指定位置：山、水、雷電、陰、陽。<br>
+        桌機可拖曳；手機可先點歌曲，再點位置放入。
       </p>
+
+      <div class="playlist-box">
+        <div class="playlist-title">創作1 播放列（依 山 → 水 → 雷電 → 陰 → 陽 順序播放）</div>
+        <div class="playlist-controls">
+          <button id="create1-play">播放</button>
+          <button id="create1-pause" class="secondary-btn">暫停</button>
+          <button id="create1-prev" class="secondary-btn">上一首</button>
+          <button id="create1-next" class="secondary-btn">下一首</button>
+          <button id="create1-stop" class="danger-btn">停止</button>
+        </div>
+        <div id="create1-status" class="playlist-status">尚未播放</div>
+      </div>
 
       <div class="upload-box">
         <div><strong>歌曲上傳方塊</strong></div>
@@ -428,6 +456,11 @@
 
       <div class="action-row">
         <button id="create1-clear" class="danger-btn">清空創作1</button>
+      </div>
+
+      <div class="mobile-tip">
+        手機操作方式：先點一下歌曲，再點 山 / 水 / 雷電 / 陰 / 陽 的位置。<br>
+        若要取消選取，再點一次同一首歌即可。
       </div>
 
       <div class="create-layout">
@@ -458,6 +491,7 @@
     const sortSummary = document.getElementById("sort-summary");
     const matchStatus = document.getElementById("match-status");
     const sortStatus = document.getElementById("sort-status");
+    const create1Status = document.getElementById("create1-status");
 
     const roles = ["吹蛇人", "婚宴樂師", "公主", "乞丐", "駱駝商隊", "酋長"];
 
@@ -508,18 +542,36 @@
       document.querySelectorAll("audio").forEach(audio => audio.pause());
     }
 
+    function getCreate1Playlist() {
+      const order = ["山", "水", "雷電", "陰", "陽"];
+      return order
+        .map(slot => create1Songs.find(song => song.slot === slot))
+        .filter(Boolean);
+    }
+
     function getPlaylistByType(type) {
       if (type === "match") return segments;
       if (type === "sort") return sortSegments;
+      if (type === "create1") return getCreate1Playlist();
       return [];
     }
 
     function getStatusElement(type) {
-      return type === "match" ? matchStatus : sortStatus;
+      if (type === "match") return matchStatus;
+      if (type === "sort") return sortStatus;
+      if (type === "create1") return create1Status;
+    }
+
+    function getPlaylistDisplayName(type, item, index, total) {
+      if (type === "create1") {
+        return `${item.slot}（第 ${index + 1} 首 / 共 ${total} 首）`;
+      }
+      return `第${toChineseNumber(item.id)}段（第 ${index + 1} 首 / 共 ${total} 首）`;
     }
 
     function updatePlaylistStatus(type, text) {
-      getStatusElement(type).innerHTML = text;
+      const el = getStatusElement(type);
+      if (el) el.innerHTML = text;
     }
 
     function playPlaylist(type, startIndex = null) {
@@ -543,16 +595,16 @@
         currentPlaylistIndex = 0;
       }
 
-      const segment = list[currentPlaylistIndex];
-      if (!segment) return;
+      const item = list[currentPlaylistIndex];
+      if (!item) return;
 
-      playlistPlayer.src = segment.file;
+      playlistPlayer.src = item.file || item.url;
       playlistPlayer.play()
         .then(() => {
           isPlaylistStopped = false;
           updatePlaylistStatus(
             type,
-            `正在播放：<span class="now-playing">第${toChineseNumber(segment.id)}段</span>（第 ${currentPlaylistIndex + 1} 首 / 共 ${list.length} 首）`
+            `正在播放：<span class="now-playing">${getPlaylistDisplayName(type, item, currentPlaylistIndex, list.length)}</span>`
           );
         })
         .catch(() => {
@@ -567,9 +619,14 @@
       }
       playlistPlayer.pause();
       const list = getPlaylistByType(type);
-      const segment = list[currentPlaylistIndex];
-      if (segment) {
-        updatePlaylistStatus(type, `已暫停：<span class="now-playing">第${toChineseNumber(segment.id)}段</span>`);
+      const item = list[currentPlaylistIndex];
+
+      if (item) {
+        if (type === "create1") {
+          updatePlaylistStatus(type, `已暫停：<span class="now-playing">${item.slot}</span>`);
+        } else {
+          updatePlaylistStatus(type, `已暫停：<span class="now-playing">第${toChineseNumber(item.id)}段</span>`);
+        }
       } else {
         updatePlaylistStatus(type, "已暫停");
       }
@@ -861,11 +918,13 @@
     const create1Slots = ["山", "水", "雷電", "陰", "陽"];
     let create1Songs = [];
     let create1DraggedSongId = null;
+    let create1SelectedSongId = null;
     let create1SongCounter = 1;
 
     function renderCreate1() {
       renderSongPool();
       renderSlotGrid();
+      updateCreate1SelectedState();
     }
 
     function renderSongPool() {
@@ -882,6 +941,7 @@
       }
 
       enableDropZone(songPool, "pool");
+      enableTapZone(songPool, "pool");
     }
 
     function renderSlotGrid() {
@@ -903,11 +963,12 @@
         } else {
           const empty = document.createElement("div");
           empty.className = "empty-text";
-          empty.textContent = "拖曳歌曲到這裡";
+          empty.textContent = "拖曳歌曲到這裡 / 點選放入";
           zone.appendChild(empty);
         }
 
         enableDropZone(zone, slotName);
+        enableTapZone(zone, slotName);
         slotGrid.appendChild(zone);
       });
     }
@@ -915,6 +976,10 @@
     function createSongCard(song) {
       const card = document.createElement("div");
       card.className = "uploaded-song";
+      if (create1SelectedSongId === song.id) {
+        card.classList.add("selected");
+      }
+
       card.draggable = true;
       card.dataset.songId = song.id;
 
@@ -922,6 +987,18 @@
         <div class="uploaded-song-title">${song.name}</div>
         <audio controls src="${song.url}"></audio>
       `;
+
+      card.addEventListener("click", (e) => {
+        const tag = e.target.tagName.toLowerCase();
+        if (tag === "audio") return;
+
+        if (create1SelectedSongId === song.id) {
+          create1SelectedSongId = null;
+        } else {
+          create1SelectedSongId = song.id;
+        }
+        renderCreate1();
+      });
 
       card.addEventListener("dragstart", (e) => {
         const tag = e.target.tagName.toLowerCase();
@@ -940,6 +1017,29 @@
       return card;
     }
 
+    function moveSongToZone(songId, zoneName) {
+      const draggedSong = create1Songs.find(song => song.id === songId);
+      if (!draggedSong) return;
+
+      if (zoneName === "pool") {
+        draggedSong.slot = null;
+      } else {
+        const existingSong = create1Songs.find(song => song.slot === zoneName);
+        if (existingSong && existingSong.id !== draggedSong.id) {
+          existingSong.slot = null;
+        }
+        draggedSong.slot = zoneName;
+      }
+
+      if (currentPlaylistType === "create1" && !isPlaylistStopped) {
+        updatePlaylistStatus("create1", "創作1配置已變動，若要依新順序播放，請按停止後再播放");
+      }
+
+      create1DraggedSongId = null;
+      create1SelectedSongId = null;
+      renderCreate1();
+    }
+
     function enableDropZone(zone, zoneName) {
       zone.addEventListener("dragover", (e) => {
         e.preventDefault();
@@ -955,22 +1055,29 @@
         zone.classList.remove("drag-over");
 
         if (!create1DraggedSongId) return;
+        moveSongToZone(create1DraggedSongId, zoneName);
+      });
+    }
 
-        const draggedSong = create1Songs.find(song => song.id === create1DraggedSongId);
-        if (!draggedSong) return;
+    function enableTapZone(zone, zoneName) {
+      zone.addEventListener("click", (e) => {
+        const clickedSongCard = e.target.closest(".uploaded-song");
+        const clickedAudio = e.target.tagName && e.target.tagName.toLowerCase() === "audio";
+        if (clickedSongCard || clickedAudio) return;
 
-        if (zoneName === "pool") {
-          draggedSong.slot = null;
-        } else {
-          const existingSong = create1Songs.find(song => song.slot === zoneName);
-          if (existingSong && existingSong.id !== draggedSong.id) {
-            existingSong.slot = null;
-          }
-          draggedSong.slot = zoneName;
-        }
+        if (!create1SelectedSongId) return;
+        moveSongToZone(create1SelectedSongId, zoneName);
+      });
+    }
 
-        create1DraggedSongId = null;
-        renderCreate1();
+    function updateCreate1SelectedState() {
+      document.querySelectorAll(".uploaded-song").forEach(card => {
+        const id = Number(card.dataset.songId);
+        card.classList.toggle("selected", id === create1SelectedSongId);
+      });
+
+      document.querySelectorAll(".drop-zone").forEach(zone => {
+        zone.classList.toggle("tap-target", !!create1SelectedSongId);
       });
     }
 
@@ -1014,8 +1121,13 @@
       });
       create1Songs = [];
       create1DraggedSongId = null;
+      create1SelectedSongId = null;
       create1Warning.textContent = "";
       create1Upload.value = "";
+      if (currentPlaylistType === "create1") {
+        stopPlaylist("create1");
+      }
+      updatePlaylistStatus("create1", "尚未播放");
       renderCreate1();
     });
 
@@ -1042,11 +1154,20 @@
     document.getElementById("sort-next").addEventListener("click", () => nextTrack("sort"));
     document.getElementById("sort-stop").addEventListener("click", () => stopPlaylist("sort"));
 
+    document.getElementById("create1-play").addEventListener("click", () =>
+      playPlaylist("create1", currentPlaylistType === "create1" && !isPlaylistStopped ? currentPlaylistIndex : 0)
+    );
+    document.getElementById("create1-pause").addEventListener("click", () => pausePlaylist("create1"));
+    document.getElementById("create1-prev").addEventListener("click", () => prevTrack("create1"));
+    document.getElementById("create1-next").addEventListener("click", () => nextTrack("create1"));
+    document.getElementById("create1-stop").addEventListener("click", () => stopPlaylist("create1"));
+
     renderMatchGame();
     initSortGame();
     renderCreate1();
     updatePlaylistStatus("match", "尚未播放");
     updatePlaylistStatus("sort", "尚未播放");
+    updatePlaylistStatus("create1", "尚未播放");
   </script>
 </body>
 </html>
