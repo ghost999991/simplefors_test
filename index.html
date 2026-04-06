@@ -116,9 +116,10 @@
       background: #fff;
       border-radius: 12px;
       padding: 12px;
-      cursor: grab;
+      cursor: move;
       box-shadow: 0 1px 4px rgba(0,0,0,0.05);
       transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      user-select: none;
     }
 
     .sort-item:hover {
@@ -126,8 +127,15 @@
       box-shadow: 0 3px 10px rgba(0,0,0,0.08);
     }
 
+    .sort-item audio,
+    .sort-item button,
+    .sort-item select,
+    .sort-item option {
+      user-select: auto;
+    }
+
     .sort-item.dragging {
-      opacity: 0.5;
+      opacity: 0.55;
       border-color: #c98942;
     }
 
@@ -152,12 +160,6 @@
     .sort-order {
       font-weight: bold;
       color: #555;
-    }
-
-    .sort-handle {
-      font-size: 18px;
-      color: #999;
-      user-select: none;
     }
 
     .result-text {
@@ -292,7 +294,7 @@
       </div>
       <div id="sort-list" class="sort-list"></div>
       <div id="sort-summary" class="summary-box"></div>
-      <div class="note">提示：拖住卡片即可改變順序。</div>
+      <div class="note">提示：現在整張卡片都比較容易拖曳，播放器本身仍可正常操作。</div>
     </section>
   </div>
 
@@ -347,7 +349,7 @@
     // 共用播放控制
     // -------------------------
     const playlistPlayer = new Audio();
-    let currentPlaylistType = null; // "match" or "sort"
+    let currentPlaylistType = null;
     let currentPlaylistIndex = 0;
     let isPlaylistStopped = true;
 
@@ -594,7 +596,6 @@
         item.innerHTML = `
           <div class="sort-top">
             <span class="sort-order">目前位置 ${index + 1}</span>
-            <span class="sort-handle">☰</span>
           </div>
           <div class="row">
             <span class="audio-label">第${toChineseNumber(segment.id)}段</span>
@@ -610,7 +611,14 @@
     let draggedItem = null;
 
     function addDragEvents(item) {
-      item.addEventListener("dragstart", () => {
+      item.addEventListener("dragstart", (e) => {
+        const tag = e.target.tagName.toLowerCase();
+
+        if (tag === "audio") {
+          e.preventDefault();
+          return;
+        }
+
         draggedItem = item;
         item.classList.add("dragging");
       });
@@ -620,6 +628,7 @@
         draggedItem = null;
         updateSortArrayFromDOM();
         refreshDisplayedOrder();
+
         if (currentPlaylistType === "sort" && !isPlaylistStopped) {
           updatePlaylistStatus("sort", "排序已變動，若要依新順序播放，請按停止後再播放");
         }
@@ -627,30 +636,25 @@
 
       item.addEventListener("dragover", (e) => {
         e.preventDefault();
-        const afterElement = getDragAfterElement(sortList, e.clientY);
-        if (!draggedItem) return;
-
-        if (afterElement == null) {
-          sortList.appendChild(draggedItem);
-        } else {
-          sortList.insertBefore(draggedItem, afterElement);
-        }
       });
-    }
 
-    function getDragAfterElement(container, y) {
-      const draggableElements = [...container.querySelectorAll(".sort-item:not(.dragging)")];
+      item.addEventListener("drop", (e) => {
+        e.preventDefault();
+        if (!draggedItem || draggedItem === item) return;
 
-      return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
+        const items = [...sortList.querySelectorAll(".sort-item")];
+        const draggedIndex = items.indexOf(draggedItem);
+        const targetIndex = items.indexOf(item);
 
-        if (offset < 0 && offset > closest.offset) {
-          return { offset: offset, element: child };
+        if (draggedIndex < targetIndex) {
+          sortList.insertBefore(draggedItem, item.nextSibling);
         } else {
-          return closest;
+          sortList.insertBefore(draggedItem, item);
         }
-      }, { offset: Number.NEGATIVE_INFINITY }).element;
+
+        updateSortArrayFromDOM();
+        refreshDisplayedOrder();
+      });
     }
 
     function updateSortArrayFromDOM() {
